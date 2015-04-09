@@ -2,6 +2,7 @@
 /*
 #Copyright by Hendra Randy Nomura
 #09 Apr 2015
+#License
 */
 	error_reporting(0);
 	session_start();
