@@ -1,6 +1,9 @@
 <?php
 error_reporting(0);
 session_start();
+if(!isset($_SESSION[username])){
+header("location:./");
+}
 require"./koneksi.php";
 $pdo=koneksi::conn(); //buka koneksi
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -13,6 +16,8 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 <link rel="stylesheet" href="./css/style.css">
 <script src="./js/jquery.js"></script>
 <script>
+jQuery.fn.exists = function(){return this.length>0;}
+
 function send(id){
 	var data=$("#"+id).find(".pesan").val();
 	if(data!=""){
@@ -20,14 +25,18 @@ function send(id){
 			type: "POST", //definisikan aksinya (POST/GET)
 			url: "./cek.pesan.php", //definisikan urlnya
 			data: {"pesan":data,"tujuan":"send","kepada":id}, //data yang akan dikirim
-			beforeSend: function(){}, //event yang akan dieksekusi sebelum pengiriman data
-			complete: function(){}, //event yang akan dieksekusi setelah pengiriman data
+			beforeSend: function(){
+				$("#"+id).find(".pesan").prop("disabled",true);
+			}, //event yang akan dieksekusi sebelum pengiriman data
+			complete: function(){
+				$("#"+id).find(".pesan").val("");
+			}, //event yang akan dieksekusi setelah pengiriman data
 			cache: false, //cache
 			success: function(html){ //event yang akan dieksekusi setelah data berhasil dikirim
+				$("#"+id).find(".pesan").prop("disabled",false);
+				$("#"+id).find(".pesan").focus();
 				$("#"+id).find(".last-chat").before(html);
-				$("#"+id).find(".pesan").val("");
-				$("#"+id).find(".last-chat").scrollBottom();
-				refresh();
+				$("#"+id).find(".last-chat").scrollTop($(".box-chat").height());
 			},
 			error: function(error){} //event yang akan diseksekusi pada saat error berlangsung
 		});
@@ -48,6 +57,7 @@ function load(id){
 		error: function(error){} //event yang akan diseksekusi pada saat error berlangsung
 	});
 }
+
 function cek(id){
 	if($(".kotak-bawah").find(".box#"+id).hasClass("tampil")==true){ //box tampil
 		if($("#"+id).hasClass("buka")==false){ // tidak terbuka
@@ -63,7 +73,6 @@ function cek(id){
 						$("#"+id).find(".alert-chat").css("display","block");
 						$("#"+id).find(".alert-chat").text(html);
 					}
-					//alert(id);
 				},
 				error: function(error){} //event yang akan diseksekusi pada saat error berlangsung
 			});
@@ -87,13 +96,11 @@ function cek(id){
 
 function chat(event,id){
 	var x = event.keyCode;
-	if((x==13)&&(event.altKey==true)){
-		
-	}
-	if((x==13)&&(event.altKey==false)){
+	if(x==13){
 		send(id);
 	}
 }
+
 function hide(id){
 	if($("#"+id).hasClass("tampil")==true){ //kotak tampil
 		if($("#"+id).hasClass("buka")==true){ //kotak terbuka
@@ -117,12 +124,15 @@ function hide(id){
 				url: "./box.pesan.php", //definisikan urlnya
 				data: {"tipe":"buka","buka":"1","user":id}, //data yang akan dikirim
 				beforeSend: function(){}, //event yang akan dieksekusi sebelum pengiriman data
-				complete: function(){}, //event yang akan dieksekusi setelah pengiriman data
+				complete: function(){
+					$("#"+id).find(".alert-chat").css("display","none");
+					$("#data-"+id).find(".alert").removeClass("show");
+					$("#data-"+id).find(".alert").text("");
+				}, //event yang akan dieksekusi setelah pengiriman data
 				cache: false, //cache
 				success: function(){ //event yang akan dieksekusi setelah data berhasil dikirim
 					$("#"+id).find(".box-chat").css("display","block");
 					$("#"+id).find(".box-send").css("display","block");
-					$("#"+id).find(".alert-chat").css("display","none");
 					$("#"+id).addClass("buka");
 					cek(id);
 					$("#"+id).find(".last-chat").scrollTop($(".box-chat").height());
@@ -132,6 +142,7 @@ function hide(id){
 		}
 	}
 }
+
 function tutup(id){
 	$.ajax({
 		type: "POST", //definisikan aksinya (POST/GET)
@@ -161,7 +172,12 @@ function show(id){
 			type: "POST", //definisikan aksinya (POST/GET)
 			url: "./box.pesan.php", //definisikan urlnya
 			data: {"user":id,"tipe":"show"}, //data yang akan dikirim
-			beforeSend: function(){}, //event yang akan dieksekusi sebelum pengiriman data
+			beforeSend: function(){
+				if($("#data-"+id).find(".alert").hasClass("show")==true){
+					$("#data-"+id).find(".alert").removeClass("show");
+					$("#data-"+id).find(".alert").text("");
+				}
+			}, //event yang akan dieksekusi sebelum pengiriman data
 			complete: function(){}, //event yang akan dieksekusi setelah pengiriman data
 			cache: false, //cache
 			success: function(html){ //event yang akan dieksekusi setelah data berhasil dikirim
@@ -174,6 +190,28 @@ function show(id){
 	}
 }
 
+function cek2(id){
+	$.ajax({
+		type: "POST", //definisikan aksinya (POST/GET)
+		url: "./box.pesan.php", //definisikan urlnya
+		data: {"tipe":"ceek"}, //data yang akan dikirim
+		beforeSend: function(){}, //event yang akan dieksekusi sebelum pengiriman data
+		complete: function(){}, //event yang akan dieksekusi setelah pengiriman data
+		cache: false, //cache
+		success: function(html){ //event yang akan dieksekusi setelah data berhasil dikirim
+		if(html!=0){	
+			if($("#data-"+html).find(".alert").hasClass("show")==true){
+				event.preventDefault();
+			}else{
+				$(html).find(".alert").addClass("show");
+				$(html).find(".alert").text("!");
+			}
+		}
+		},
+		error: function(error){} //event yang akan diseksekusi pada saat error berlangsung
+	});
+}
+
 function refresh(){
 	$(".box").each(function(){
 		var id=$(this).attr("id");
@@ -181,17 +219,19 @@ function refresh(){
 	});
 	$.ajax({
 		type: "POST", //definisikan aksinya (POST/GET)
-		url: "./box.pesan.php", //definisikan urlnya
-		data: {"tipe":"cek"}, //data yang akan dikirim
+		url: "./cek.pesan.php", //definisikan urlnya
+		data: {"tujuan":"cek3"}, //data yang akan dikirim
 		beforeSend: function(){}, //event yang akan dieksekusi sebelum pengiriman data
 		complete: function(){}, //event yang akan dieksekusi setelah pengiriman data
 		cache: false, //cache
-		success: function(html){ //event yang akan dieksekusi setelah data berhasil dikirim
-			$(".last-box").before(html);
+		success: function(data){ //event yang akan dieksekusi setelah data berhasil dikirim
+			if(data!=0){
+				cek2(data);
+			}
 		},
 		error: function(error){} //event yang akan diseksekusi pada saat error berlangsung
 	});
-	setTimeout("refresh()",1000);
+	setTimeout("refresh()",400);
 }
 refresh();
 </script>
@@ -209,7 +249,7 @@ refresh();
 				$teman="select * from user where username!='$_SESSION[username]'";
 				foreach($pdo->query($teman) as $rt){
 			?>
-					<li><a onclick="show('<?php echo $rt[username]; ?>')"><img src="" width=30 /><span><?php echo $rt[username]; ?></span></a><div class="clear"></div></li>
+					<li><a id="data-<?php echo $rt[username] ?>" onclick="show('<?php echo $rt[username]; ?>')"><img src="" width=30 /><span><?php echo $rt[username]; ?></span><div class="alert"></div></a><div class="clear"></div></li>
 			<?php
 				}
 			?>
@@ -256,6 +296,7 @@ refresh();
 					</form>
 				</div>
 			</div>
+			<script>load("<?php echo $rc[user2]; ?>");</script>
 		<?php
 				}
 			}
